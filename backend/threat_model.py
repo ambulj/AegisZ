@@ -1,12 +1,13 @@
 """
-AegisZ: Zero-Knowledge Clinical & Public-Welfare AI Gateway
-Module B: Real-Time Cybersecurity & AI Threat Detector
+AegisZ: PII-Blind Clinical & Public-Welfare AI Gateway
+Module B: Real-Time Threat Gatekeeper (Text-Level Prompt Injection Guard + Tabular Anomaly Model)
 Compatible with IBM Z Telum II / zDLC On-Chip AI & ONNX Runtime (s390x & x86_64)
 """
 
 import os
 import time
 import re
+import base64
 import numpy as np
 from typing import Dict, Any, Tuple, List, Optional
 import joblib
@@ -37,14 +38,133 @@ THREAT_CLASSES = [
     "INSIDER_CREDENTIAL_MISUSE"
 ]
 
+
+class TextPromptInjectionGuard:
+    """
+    Text-Level Adversarial Prompt Injection and Jailbreak Guard.
+    Evaluates raw and tokenized natural language inputs against:
+    - Instruction overrides & DAN jailbreaks
+    - System prompt exfiltration attempts
+    - Data exfiltration & SQL/eval injection patterns
+    - Base64 / hex obfuscation and smuggling
+    - Canary token tripwires
+    """
+
+    def __init__(self):
+        # 1. Instruction Overrides & Jailbreaks
+        self.jailbreak_patterns = [
+            r"(?i)\b(?:ignore|disregard|forget|bypass|override|drop)\s+(?:all\s+|previous\s+|prior\s+|initial\s+|system\s+)*(?:instructions|rules|constraints|prompt|guidelines)",
+            r"(?i)\b(?:DAN|jailbreak|developer\s+mode|unfiltered\s+mode|god\s+mode|evil\s+mode)\b",
+            r"(?i)\b(?:you\s+are\s+now|pretend\s+(?:you\s+are|to\s+be)|act\s+as\s+if\s+you\s+are)\s+(?:an?\s+unfiltered|an?\s+unrestricted|free\s+of\s+rules|evil)",
+            r"(?i)\b(?:system\s*override|emergency\s*override)\b",
+            r"(?i)\bdo\s+anything\s+now\b",
+            r"(?i)\bleak\s+instructions\b"
+        ]
+
+        # 2. System Prompt Exfiltration
+        self.leak_patterns = [
+            r"(?i)\b(?:repeat|reveal|print|display|dump|leak|show|output)\s+(?:your\s+|the\s+)*(?:system\s+prompt|initial\s+instructions|system\s+message|internal\s+configuration|instructions)",
+            r"(?i)\bwhat\s+(?:were|are|was)\s+your\s+(?:initial|first|original|system)\s+(?:instructions|prompts|rules|message|system\s+message)",
+            r"(?i)\bshow\s+me\s+the\s+text\s+above\b",
+            r"(?i)\bprint\s+everything\s+prior\s+to\b"
+        ]
+
+        # 3. Data Exfiltration & Database Smuggling
+        self.exfiltration_patterns = [
+            r"(?i)\b(?:dump|export|leak|extract|reveal)\s+(?:all\s+)*(?:database|patients?|ssns?|aadhaar|records|keys|passwords)",
+            r"(?i)\b(?:drop\s+table|union\s+select|information_schema|or\s+1=1|--\s*$)",
+            r"(?i)(?:<script|javascript:|fetch\(|document\.cookie|eval\(|exec\(|format\s+c:)",
+            r"(?i)\b(?:select\s+\*\s+from|delete\s+from\s+users)\b"
+        ]
+
+        # Canary token for egress monitoring
+        self.canary_token = "AEGISZ-CANARY-7749-XAI"
+
+    def inspect_text(self, text: str) -> Dict[str, Any]:
+        """
+        Inspects text content for prompt injection attacks.
+        Returns detailed scoring and matched pattern evidence.
+        """
+        if not text:
+            return {
+                "is_injection": False,
+                "score": 0.0,
+                "risk_tier": "CLEAN",
+                "matched_patterns": [],
+                "verdict": "PERMITTED"
+            }
+
+        matched = []
+        score = 0.0
+
+        # Check jailbreak patterns
+        for p in self.jailbreak_patterns:
+            if re.search(p, text):
+                matched.append(f"JAILBREAK_OVERRIDE: {p[:30]}...")
+                score += 0.55
+
+        # Check leak patterns
+        for p in self.leak_patterns:
+            if re.search(p, text):
+                matched.append(f"SYSTEM_PROMPT_LEAK: {p[:30]}...")
+                score += 0.50
+
+        # Check exfiltration patterns
+        for p in self.exfiltration_patterns:
+            if re.search(p, text):
+                matched.append(f"DATA_EXFILTRATION: {p[:30]}...")
+                score += 0.60
+
+        # Check for encoded / base64 payload smuggling
+        b64_matches = re.findall(r"[A-Za-z0-9+/=]{32,}", text)
+        for b in b64_matches:
+            try:
+                decoded = base64.b64decode(b).decode("utf-8", errors="ignore").lower()
+                for p in self.jailbreak_patterns + self.leak_patterns + self.exfiltration_patterns:
+                    if re.search(p, decoded):
+                        matched.append("BASE64_SMUGGLED_PAYLOAD")
+                        score += 0.65
+                        break
+            except Exception:
+                pass
+
+        # Check canary token tripwire
+        if self.canary_token in text:
+            matched.append("CANARY_TRIPWIRE_TRIGGERED")
+            score += 0.90
+
+        score = min(1.0, round(score, 3))
+        is_injection = score >= 0.45
+
+        if score >= 0.70:
+            tier = "CRITICAL"
+        elif score >= 0.45:
+            tier = "HIGH"
+        elif score > 0.15:
+            tier = "MEDIUM"
+        else:
+            tier = "CLEAN"
+
+        return {
+            "is_injection": is_injection,
+            "score": score,
+            "risk_tier": tier,
+            "matched_patterns": matched,
+            "verdict": "BLOCKED" if is_injection else "PERMITTED"
+        }
+
+
 class ThreatDetector:
     """
     Real-Time AI Threat Detection Engine.
-    Executes in microseconds using ONNX Runtime, emulating IBM Z Telum AI accelerator speeds.
+    Combines:
+    1. TextPromptInjectionGuard: Text-level prompt injection & jailbreak detection.
+    2. Tabular Anomaly Model: Velocity, RBAC escalation, and bulk scraping via ONNX / Isolation Forest.
     """
 
     def __init__(self):
         os.makedirs(MODEL_DIR, exist_ok=True)
+        self.text_guard = TextPromptInjectionGuard()
         self.classifier = None
         self.iso_forest = None
         self.ort_session = None
@@ -59,46 +179,15 @@ class ThreatDetector:
             "geo_entropy_flag"          # 1.0 if foreign or non-whitelisted IP
         ]
 
-        self.injection_signatures = [
-            r"ignore\s+(previous|all)\s+instructions",
-            r"system\s*prompt\s*(leak|reveal|show)",
-            r"bypass\s+security",
-            r"\bDAN\b",
-            r"jailbreak",
-            r"format\s*c:",
-            r"<script>",
-            r"drop\s+table",
-            r"union\s+select",
-            r"eval\(",
-            r"base64_decode",
-            r"dump\s+database",
-            r"export\s+all\s+patients"
-        ]
-
         self._ensure_models_trained()
 
     def _calculate_injection_score(self, text: str) -> float:
-        """Heuristic adversarial prompt detection score."""
-        if not text:
-            return 0.0
-        score = 0.0
-        text_lower = text.lower()
-        for pattern in self.injection_signatures:
-            if re.search(pattern, text_lower):
-                score += 0.4
-        
-        # Check suspicious character distributions
-        if "{" in text and "}" in text and ("exec" in text_lower or "os." in text_lower):
-            score += 0.5
-        if re.search(r"[A-Za-z0-9+/=]{40,}", text):  # Potential base64 block
-            score += 0.3
-            
-        return min(1.0, score)
+        """Heuristic adversarial prompt detection score via TextPromptInjectionGuard."""
+        res = self.text_guard.inspect_text(text)
+        return res["score"]
 
     def extract_features(self, payload: Dict[str, Any]) -> np.ndarray:
-        """
-        Transforms incoming request telemetry into normalized feature vector.
-        """
+        """Transforms incoming request telemetry into normalized feature vector."""
         role_map = {"Doctor": 0.0, "Billing Clerk": 1.0, "External Researcher": 2.0, "Unauthorized Attacker": 3.0}
         role_numeric = role_map.get(payload.get("role", "Unauthorized Attacker"), 3.0)
         
@@ -157,27 +246,27 @@ class ThreatDetector:
         ])
         y0 = np.zeros(n0)
 
-        # Class 1: Unauthorized RBAC Escalation (Unauthorized role trying to query high sensitive counts)
+        # Class 1: Unauthorized RBAC Escalation
         n1 = 250
         c1 = np.column_stack([
-            np.full(n1, 3.0),                                               # Unauthorized role
+            np.full(n1, 3.0),
             np.random.uniform(2.0, 10.0, size=n1),
             np.random.normal(loc=400, scale=100, size=n1),
             np.random.uniform(0.0, 0.2, size=n1),
             np.random.choice([0.0, 1.0], size=n1, p=[0.6, 0.4]),
-            np.random.uniform(3.0, 10.0, size=n1),                          # high sensitive count
+            np.random.uniform(3.0, 10.0, size=n1),
             np.random.exponential(scale=5.0, size=n1),
             np.random.choice([0.0, 1.0], size=n1, p=[0.7, 0.3])
         ])
         y1 = np.full(n1, 1)
 
-        # Class 2: Adversarial Prompt Injection (High injection score)
+        # Class 2: Adversarial Prompt Injection
         n2 = 250
         c2 = np.column_stack([
             np.random.choice([0.0, 2.0, 3.0], size=n2),
             np.random.uniform(1.0, 8.0, size=n2),
-            np.random.normal(loc=900, scale=300, size=n2),                  # large prompt payloads
-            np.random.uniform(0.6, 1.0, size=n2),                           # High injection score
+            np.random.normal(loc=900, scale=300, size=n2),
+            np.random.uniform(0.6, 1.0, size=n2),
             np.random.choice([0.0, 1.0], size=n2),
             np.random.uniform(1.0, 5.0, size=n2),
             np.random.uniform(0.5, 3.0, size=n2),
@@ -185,50 +274,46 @@ class ThreatDetector:
         ])
         y2 = np.full(n2, 2)
 
-        # Class 3: Bulk Scraping / Anomalous Velocity (Massive velocity & egress)
+        # Class 3: Bulk Scraping / Anomalous Velocity
         n3 = 250
         c3 = np.column_stack([
             np.random.choice([1.0, 2.0, 3.0], size=n3),
-            np.random.uniform(25.0, 120.0, size=n3),                        # High velocity
+            np.random.uniform(25.0, 120.0, size=n3),
             np.random.normal(loc=500, scale=150, size=n3),
             np.random.uniform(0.0, 0.2, size=n3),
             np.random.choice([0.0, 1.0], size=n3, p=[0.4, 0.6]),
             np.random.uniform(5.0, 25.0, size=n3),
-            np.random.uniform(50.0, 500.0, size=n3),                        # High egress
+            np.random.uniform(50.0, 500.0, size=n3),
             np.random.choice([0.0, 1.0], size=n3, p=[0.5, 0.5])
         ])
         y3 = np.full(n3, 3)
 
-        # Class 4: Insider Credential Misuse (Doctor/Billing role, 3am off-hours, high geo-anomaly, high egress)
+        # Class 4: Insider Credential Misuse
         n4 = 250
         c4 = np.column_stack([
-            np.random.choice([0.0, 1.0], size=n4),                          # Legitimate internal role
+            np.random.choice([0.0, 1.0], size=n4),
             np.random.uniform(5.0, 20.0, size=n4),
             np.random.normal(loc=700, scale=200, size=n4),
             np.random.uniform(0.0, 0.3, size=n4),
-            np.ones(n4),                                                    # 100% off-hours
+            np.ones(n4),
             np.random.uniform(4.0, 12.0, size=n4),
             np.random.uniform(20.0, 150.0, size=n4),
-            np.ones(n4)                                                     # foreign/anomalous IP
+            np.ones(n4)
         ])
         y4 = np.full(n4, 4)
 
         X = np.vstack([c0, c1, c2, c3, c4]).astype(np.float32)
         y = np.concatenate([y0, y1, y2, y3, y4]).astype(np.int64)
 
-        # Train Isolation Forest for unsupervised zero-day anomaly boundary
         self.iso_forest = IsolationForest(n_estimators=100, contamination=0.3, random_state=42)
         self.iso_forest.fit(X)
 
-        # Train Random Forest Classifier
         self.classifier = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
         self.classifier.fit(X, y)
 
-        # Save artifacts
         joblib.dump(self.classifier, SKLEARN_PATH)
         joblib.dump(self.iso_forest, ISOFOREST_PATH)
 
-        # Attempt ONNX export for Telum compatibility
         try:
             from skl2onnx import convert_sklearn
             from skl2onnx.common.data_types import FloatTensorType
@@ -243,34 +328,30 @@ class ThreatDetector:
         self._init_onnx_session()
 
     def _init_onnx_session(self):
-        """Initializes ONNX Runtime session if available."""
         if HAS_ONNX and os.path.exists(ONNX_PATH):
             try:
                 opts = ort.SessionOptions()
                 opts.intra_op_num_threads = 2
                 self.ort_session = ort.InferenceSession(ONNX_PATH, sess_options=opts, providers=['CPUExecutionProvider'])
-            except Exception as e:
+            except Exception:
                 self.ort_session = None
 
     def predict(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Predicts threat vector and anomaly score with microsecond precision.
-        """
+        """Predicts threat vector and anomaly score with microsecond precision."""
         features = self.extract_features(payload)
         t_start = time.perf_counter()
 
-        # Check prompt injection heuristic directly for instant defense
         text_content = payload.get("content", "")
-        heuristic_score = self._calculate_injection_score(text_content)
+        text_guard_result = self.text_guard.inspect_text(text_content)
+        heuristic_score = text_guard_result["score"]
         
-        # If ONNX session is active, infer via ONNX
         used_onnx = False
         if self.ort_session is not None:
             try:
                 input_name = self.ort_session.get_inputs()[0].name
                 raw_out = self.ort_session.run(None, {input_name: features})
                 predicted_class_idx = int(raw_out[0][0])
-                probabilities = raw_out[1][0] # dict or array
+                probabilities = raw_out[1][0]
                 if isinstance(probabilities, dict):
                     confidence = float(probabilities.get(predicted_class_idx, 0.95))
                 else:
@@ -284,12 +365,11 @@ class ThreatDetector:
             probs = self.classifier.predict_proba(features)[0]
             confidence = float(probs[predicted_class_idx])
 
-        # Isolation forest anomaly score (-1 is anomaly, 1 is normal)
         iso_score = float(self.iso_forest.decision_function(features)[0])
         is_anomaly = iso_score < 0.0
 
-        # Override with Prompt Injection if heuristic detects definitive threat pattern
-        if heuristic_score >= 0.4:
+        # Text guard override: if prompt injection detected, block immediately
+        if text_guard_result["is_injection"]:
             predicted_class_idx = 2
             confidence = max(confidence, 0.98)
             is_anomaly = True
@@ -307,7 +387,6 @@ class ThreatDetector:
         threat_name = THREAT_CLASSES[predicted_class_idx]
         is_blocked = (predicted_class_idx != 0) or is_anomaly
 
-        # Recommended automated action
         if predicted_class_idx == 0 and not is_anomaly:
             action = "PERMIT_AI_INFERENCE"
         elif predicted_class_idx == 1:
@@ -331,6 +410,7 @@ class ThreatDetector:
             "action": action,
             "latency_us": latency_us,
             "latency_ms": latency_ms,
+            "text_guard": text_guard_result,
             "accelerator": "IBM Z Telum II / zDLC (ONNX Runtime)" if used_onnx else "IBM LinuxONE Optimized Kernel",
             "features_evaluated": {
                 name: round(float(val), 2) for name, val in zip(self.feature_names, features[0])
@@ -338,5 +418,5 @@ class ThreatDetector:
         }
 
 
-# Global threat detector instance
+# Global Singleton
 threat_detector = ThreatDetector()

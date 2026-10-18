@@ -23,10 +23,11 @@ from privacy_engine import privacy_vault
 from threat_model import threat_detector, THREAT_CLASSES
 from quantum_crypto import audit_ledger, CBOMScanner, PQCPrimitives
 from mosca_engine import mosca_engine
+from policy_engine import opa_policy_engine, oidc_validator
 
 app = FastAPI(
-    title="AegisZ: Zero-Knowledge Clinical & Welfare AI Gateway",
-    description="Enterprise Post-Quantum Cryptographic Gateway with Format-Preserving PII Vault, Differential Privacy, and IBM Z Telum Acceleration",
+    title="AegisZ: PII-Blind Clinical & Welfare AI Gateway",
+    description="Enterprise Post-Quantum Cryptographic Gateway with Reversible AES-256-GCM Vault, Differential Privacy, OPA ABAC, and IBM Z Architecture Mapping",
     version="2.4.0"
 )
 
@@ -202,7 +203,7 @@ seed_initial_ledger()
 def get_health():
     return {
         "status": "HEALTHY",
-        "service": "AegisZ Zero-Knowledge Clinical Gateway",
+        "service": "AegisZ PII-Blind Clinical Gateway",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "target_architecture": "s390x / IBM LinuxONE Ready",
         "onnx_acceleration": threat_detector.ort_session is not None,
@@ -390,14 +391,20 @@ def process_confidential_gateway_transaction(req: GatewayProcessRequest):
     )
     stats["pqc_signatures_generated"] += 1
 
+    # Mosca Quantum Exposure Simulation (X + Y > Z)
+    mosca_sim = mosca_engine.simulate_exposure(
+        x_migration_years=3.0,
+        y_shelf_life_years=50.0,
+        is_pqc_migrated=is_enclave_tee
+    )
+
     total_pipeline_ms = round((time.perf_counter() - t_start) * 1000, 3)
 
-    return {
+    raw_response = {
         "status": "APPROVED_AND_TRIAGED",
         "threat_intercepted": False,
         "threat_evaluation": threat_res,
         "zero_knowledge_sanitization": {
-            "raw_text_preview": req.clinical_note[:80] + "...",
             "sanitized_text": sanitized_note,
             "redactions": redaction_meta.get("manifest", []),
             "pii_density": redaction_meta.get("pii_density", 0.0),
@@ -415,6 +422,12 @@ def process_confidential_gateway_transaction(req: GatewayProcessRequest):
             }
         },
         "clinical_ai_triage": triage_result,
+        "mosca_quantum_exposure": {
+            "exposure_probability": mosca_sim["exposure_probability"],
+            "composite_risk_score": mosca_sim["composite_risk_score"],
+            "hndl_priority_weight": "CRITICAL_HNDL_PRIORITY" if mosca_sim["exposure_probability"] >= 0.8 else "NORMAL_PRIORITY",
+            "is_pqc_migrated": is_enclave_tee
+        },
         "pqc_audit_receipt": {
             "block_index": audit_block.index,
             "timestamp": audit_block.timestamp,
@@ -426,6 +439,10 @@ def process_confidential_gateway_transaction(req: GatewayProcessRequest):
         },
         "pipeline_latency_ms": total_pipeline_ms
     }
+
+    # Enforce OPA Policy-as-Code field-level filtering
+    filtered_response = opa_policy_engine.filter_response_by_role(req.role, raw_response)
+    return filtered_response
 
 
 @app.post("/api/vault/break-glass")
@@ -553,12 +570,55 @@ def tamper_audit_ledger(req: TamperRequest):
     return audit_ledger.tamper_block(req.block_index, req.malicious_role)
 
 
-@app.post("/api/ledger/reset")
-def reset_audit_ledger():
-    """Repairs and resets the audit ledger to a pristine verified state."""
-    audit_ledger.reset_chain()
-    seed_initial_ledger()
-    return {"status": "SUCCESS", "message": "Audit ledger re-initialized with PQC ML-DSA-65 signatures"}
+@app.get("/api/ledger/proof")
+def get_merkle_inclusion_proof(
+    block_index: int = Query(0, ge=0, description="Index of block in ledger"),
+    tx_index: int = Query(0, ge=0, description="Leaf index in Merkle tree")
+):
+    """Generates and cryptographically verifies a Merkle inclusion proof for a transaction."""
+    try:
+        return audit_ledger.get_inclusion_proof_for_block(block_index, tx_index)
+    except IndexError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+class AggregateDPRequest(BaseModel):
+    values: List[float] = Field(..., description="Numerical cohort data points")
+    epsilon: float = Field(1.0, ge=0.01, le=10.0, description="Privacy budget epsilon")
+    query_type: str = Field("mean", description="'mean', 'sum', 'count', or 'median'")
+    mechanism: str = Field("laplace", description="'laplace' or 'gaussian'")
+    delta: Optional[float] = Field(1e-5, description="Delta parameter for Gaussian DP")
+
+
+@app.post("/api/privacy/aggregate")
+def compute_aggregate_dp(req: AggregateDPRequest):
+    """Applies Differential Privacy to cohort aggregate queries."""
+    if req.mechanism == "gaussian":
+        return privacy_vault.apply_aggregate_gaussian_dp(
+            values=req.values,
+            epsilon=req.epsilon,
+            delta=req.delta or 1e-5,
+            query_type=req.query_type
+        )
+    return privacy_vault.apply_aggregate_laplace_dp(
+        values=req.values,
+        epsilon=req.epsilon,
+        query_type=req.query_type
+    )
+
+
+@app.post("/api/auth/token")
+def generate_keycloak_token(role: str = Query("Doctor"), username: str = Query("dr_smith")):
+    """Generates mock signed Keycloak OIDC JWT token for testing ABAC role policies."""
+    token = oidc_validator.generate_demo_token(role=role, username=username)
+    return {
+        "access_token": token,
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "realm": "ibm-z-healthcare",
+        "role_assigned": role
+    }
+
 
 
 # Live WebSocket Stream of Clinical Transactions

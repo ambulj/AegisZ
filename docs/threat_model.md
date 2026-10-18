@@ -23,22 +23,28 @@ AegisZ processes sensitive clinical and citizen welfare records across distinct 
                                  ▼
                      [ AegisZ API Gateway (FastAPI) ]
                                  │
-                 ================= BOUNDARY 2: Threat Quarantine =================
+                 ================= BOUNDARY 2: Stage 0 PII Scrubber =================
+                                 │
+                                 ▼
+                    [ Stage 0 Wire-Speed Scrubber ]
+                    (AES-256-GCM Vault & SoftHSM Key Provider)
+                                 │
+                 ================= BOUNDARY 3: PII-Blind Tokens =================
                                  │
                 ┌────────────────┴────────────────┐
                 ▼                                 ▼
-      [ Telum ONNX Threat Model ]      [ Format-Preserving Vault ]
-      (Microsecond AI Scoring)         (HMAC-SHA3-256 Tokenization)
+      [ Telum ONNX Threat Model ]      [ Text Prompt Guard ]
+      (Microsecond Anomaly Scoring)    (Red-Team Jailbreak Guard)
                 │                                 │
                 └────────────────┬────────────────┘
                                  │
-                 ================= BOUNDARY 3: Zero-Knowledge Payload =================
+                 ================= BOUNDARY 4: OPA ABAC Policy =================
                                  │
                                  ▼
                     [ Confidential AI Triage Core ]
-                    (Operates ONLY on Sanitized + DP Data)
+                    (Dual-Path: Enclave TEE vs Aggregate DP)
                                  │
-                 ================= BOUNDARY 4: Hardware HSM Security =================
+                 ================= BOUNDARY 5: Hardware HSM Security =================
                                  │
                                  ▼
             [ Immutable Merkle Hash Chain Audit Ledger ]

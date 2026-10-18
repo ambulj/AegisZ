@@ -1,0 +1,35 @@
+{
+  "hardware_environment": {
+    "system_os": "Windows",
+    "os_release": "10",
+    "architecture": "AMD64",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "python_version": "3.11.9"
+  },
+  "measured_threat_inference_microseconds": {
+    "iterations": 1000,
+    "engine": "ONNX Runtime (ort)",
+    "min_us": 3515.8,
+    "mean_us": 4984.85,
+    "p50_us": 4389.85,
+    "p95_us": 8783.74,
+    "p99_us": 10531.81,
+    "max_us": 13826.5
+  },
+  "measured_e2e_pipeline_milliseconds": {
+    "iterations": 100,
+    "stages_executed": "Stage 0 (CPACF Scrubber) + Stage 1 (Threat) + Stage 2 (Budget) + Stage 3 (TEE) + Stage 4 (ML-DSA-65 Ledger)",
+    "min_ms": 4.28,
+    "mean_ms": 5.494,
+    "p50_ms": 4.917,
+    "p95_ms": 9.111,
+    "p99_ms": 9.54,
+    "max_ms": 9.633
+  },
+  "ibm_telum_ii_architectural_projection": {
+    "target": "IBM Telum II Integrated AI Accelerator (NNPA)",
+    "status": "Designed for, mapped to architecture; not run directly on physical Telum II chip",
+    "projected_latency_microseconds": 380.0,
+    "rationale": "Direct on-die memory bus eliminates PCIe traversal overhead present on standard x86/GPU buses"
+  }
+}
