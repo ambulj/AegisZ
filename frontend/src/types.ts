@@ -161,3 +161,23 @@ export interface MoscaSimulationResult {
   sample_z_draws_preview: number[];
 }
 
+export interface BreakGlassResult {
+  status: string;
+  patient_token: string;
+  resolved_identity: string;
+  requesting_doctor: string;
+  justification: string;
+  pqc_escrow_mechanism: string;
+  audit_receipt: any;
+  error?: string;
+}
+
+export interface RoleBudgetStatus {
+  spent: number;
+  limit: number;
+  remaining: number;
+  exhausted: boolean;
+}
+
+export type PrivacyBudgetMap = Record<string, RoleBudgetStatus>;
+

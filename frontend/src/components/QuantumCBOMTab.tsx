@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Lock, CheckCircle2, XCircle, 
   RefreshCw, Database, ChevronRight, ChevronDown, Wrench, ShieldAlert,
-  TrendingUp, Sliders, ShieldCheck, Cpu, Clock, Sparkles
+  TrendingUp, Sliders, ShieldCheck, Cpu, Clock, Sparkles, FileDown
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine 
@@ -16,6 +16,7 @@ interface QuantumCBOMTabProps {
   onTamperLedger: (blockIndex: number) => Promise<any>;
   onResetLedger: () => Promise<any>;
   onSimulateMosca: (migrationYears: number, shelfLifeYears: number, isPqc: boolean) => Promise<MoscaSimulationResult>;
+  onDownloadCycloneDX: () => Promise<void>;
 }
 
 export const QuantumCBOMTab: React.FC<QuantumCBOMTabProps> = ({
@@ -24,7 +25,8 @@ export const QuantumCBOMTab: React.FC<QuantumCBOMTabProps> = ({
   onVerifyLedger,
   onTamperLedger,
   onResetLedger,
-  onSimulateMosca
+  onSimulateMosca,
+  onDownloadCycloneDX
 }) => {
   const [cbom, setCbom] = useState<CBOMScanResult | null>(null);
   const [ledger, setLedger] = useState<AuditBlock[]>([]);
@@ -220,10 +222,22 @@ export const QuantumCBOMTab: React.FC<QuantumCBOMTabProps> = ({
 
       {/* CBOM Assets Inventory Table */}
       <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 overflow-hidden">
-        <h4 className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center justify-between">
-          <span>Enterprise Cryptographic Assets & Migration Roadmap</span>
-          <span className="text-[10px] text-slate-500 font-normal">IBM Crypto Express 8S (CEX8S) Ready</span>
-        </h4>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div>
+            <h4 className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <span>Enterprise Cryptographic Assets & Migration Roadmap</span>
+            </h4>
+            <div className="text-[10px] text-slate-500 font-normal">IBM CEX8S (PQC HSM) &amp; CPACF (On-Core) Mapped</div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onDownloadCycloneDX}
+            className="px-3 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition self-start sm:self-auto shadow-md"
+          >
+            <FileDown className="w-3.5 h-3.5" /> Download CycloneDX 1.6 CBOM + ML-BOM (JSON)
+          </button>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">

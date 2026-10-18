@@ -3,7 +3,7 @@ import {
   Shield, Activity, Lock, Cpu, Radio
 } from 'lucide-react';
 
-import { GatewayStats, TelemetryPulse, CBOMScanResult, AuditBlock, VerifyChainResult, MoscaSimulationResult } from './types';
+import { GatewayStats, TelemetryPulse, CBOMScanResult, AuditBlock, VerifyChainResult, MoscaSimulationResult, BreakGlassResult, PrivacyBudgetMap } from './types';
 import { LiveGatewayTab } from './components/LiveGatewayTab';
 import { PrivacySandboxTab } from './components/PrivacySandboxTab';
 import { QuantumCBOMTab } from './components/QuantumCBOMTab';
@@ -136,6 +136,45 @@ export const App: React.FC = () => {
     return await res.json();
   };
 
+  const handleBreakGlass = async (patientToken: string, requestingRole: string, justification: string): Promise<BreakGlassResult> => {
+    const res = await fetch(`${API_BASE}/api/vault/break-glass`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patient_token: patientToken,
+        requesting_role: requestingRole,
+        justification
+      })
+    });
+    fetchStats();
+    return await res.json();
+  };
+
+  const handleFetchPrivacyBudget = async (): Promise<PrivacyBudgetMap> => {
+    const res = await fetch(`${API_BASE}/api/privacy/budget`);
+    return await res.json();
+  };
+
+  const handleResetPrivacyBudget = async (role?: string) => {
+    const url = role ? `${API_BASE}/api/privacy/budget/reset?role=${encodeURIComponent(role)}` : `${API_BASE}/api/privacy/budget/reset`;
+    const res = await fetch(url, { method: 'POST' });
+    fetchStats();
+    return await res.json();
+  };
+
+  const handleDownloadCycloneDX = async () => {
+    const res = await fetch(`${API_BASE}/api/cbom/cyclonedx`);
+    const bom = await res.json();
+    const blob = new Blob([JSON.stringify(bom, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cyclonedx-1.6-aegisz-bom-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Top Navigation Bar */}
@@ -232,7 +271,12 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'sandbox' && (
-          <PrivacySandboxTab onProcessGateway={handleProcessGateway} />
+          <PrivacySandboxTab 
+            onProcessGateway={handleProcessGateway}
+            onBreakGlass={handleBreakGlass}
+            onFetchBudget={handleFetchPrivacyBudget}
+            onResetBudget={handleResetPrivacyBudget}
+          />
         )}
 
         {activeTab === 'cbom' && (
@@ -243,6 +287,7 @@ export const App: React.FC = () => {
             onTamperLedger={handleTamperLedger}
             onResetLedger={handleResetLedger}
             onSimulateMosca={handleSimulateMosca}
+            onDownloadCycloneDX={handleDownloadCycloneDX}
           />
         )}
 
