@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   ShieldAlert, ShieldCheck, Zap, Activity, Cpu, 
-  Terminal, Lock, AlertTriangle, CheckCircle2, PlayCircle, Radio
+  Terminal, Lock, AlertTriangle, CheckCircle2, PlayCircle, Radio,
+  Eye, EyeOff
 } from 'lucide-react';
 import { GatewayStats, TelemetryPulse } from '../types';
 
@@ -14,6 +15,7 @@ interface LiveGatewayTabProps {
 export const LiveGatewayTab: React.FC<LiveGatewayTabProps> = ({ stats, telemetryStream, onInjectAttack }) => {
   const [injecting, setInjecting] = useState<string | null>(null);
   const [lastInjectionResult, setLastInjectionResult] = useState<any | null>(null);
+  const [showRawSynthetic, setShowRawSynthetic] = useState(false);
 
   const handleInject = async (type: string) => {
     setInjecting(type);
@@ -40,7 +42,7 @@ export const LiveGatewayTab: React.FC<LiveGatewayTabProps> = ({ stats, telemetry
             {stats?.avg_inference_latency_us || 382.4} <span className="text-xs text-cyan-400 font-normal">µs</span>
           </div>
           <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1 font-mono">
-            <Cpu className="w-3 h-3 text-cyan-400 inline" /> Telum II On-Chip AI
+            <Cpu className="w-3 h-3 text-cyan-400 inline" /> Designed for Telum II (Simulated)
           </div>
           <div className="absolute top-0 right-0 w-1 h-full bg-cyan-500"></div>
         </div>
@@ -201,16 +203,26 @@ export const LiveGatewayTab: React.FC<LiveGatewayTabProps> = ({ stats, telemetry
 
       {/* Live Split-Screen Stream */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left Column: Live Ingestion Stream */}
+        {/* Left Column: Live Ingestion Stream (Masked by Default) */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col h-[460px]">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <h4 className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
-                Raw Clinical Payloads (Pre-Sanitization)
+                Ingress Payloads (Synthetic Only)
               </h4>
             </div>
-            <span className="text-[10px] font-mono text-slate-500">WebSocket /ws/stream</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowRawSynthetic(!showRawSynthetic)}
+                className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+              >
+                {showRawSynthetic ? <EyeOff className="w-3 h-3 text-amber-400" /> : <Eye className="w-3 h-3 text-cyan-400" />}
+                {showRawSynthetic ? 'Mask Previews' : 'Reveal (Demo)'}
+              </button>
+              <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">WebSocket /ws/stream</span>
+            </div>
           </div>
 
           <div className="space-y-2.5 overflow-y-auto pr-1 flex-1">
@@ -232,7 +244,9 @@ export const LiveGatewayTab: React.FC<LiveGatewayTabProps> = ({ stats, telemetry
                     <span className="font-bold text-slate-300">{item.role}</span>
                     <span>{new Date(item.timestamp).toLocaleTimeString()}</span>
                   </div>
-                  <div className="text-slate-200 text-[11px] truncate">{item.raw_preview}</div>
+                  <div className="text-slate-200 text-[11px] truncate">
+                    {showRawSynthetic ? item.raw_preview : '•••••••••••••••••••••••••••••••••••••••• [Synthetic PII Masked by Default]'}
+                  </div>
                   <div className="mt-1.5 flex items-center justify-between text-[10px]">
                     <span className="text-slate-500">Block #{item.block_index}</span>
                     {item.threat_detected ? (
@@ -251,16 +265,16 @@ export const LiveGatewayTab: React.FC<LiveGatewayTabProps> = ({ stats, telemetry
           </div>
         </div>
 
-        {/* Right Column: Zero-Knowledge AI Triage Stream */}
+        {/* Right Column: PII-Blind AI Triage Stream */}
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col h-[460px]">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
             <div className="flex items-center gap-2">
               <Lock className="w-3.5 h-3.5 text-cyan-400" />
               <h4 className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
-                Zero-Knowledge Sanitized & PQC Triaged
+                PII-Blind Sanitized & PQC Triaged
               </h4>
             </div>
-            <span className="text-[10px] font-mono text-cyan-400">HMAC-SHA3-256 + ML-DSA-65</span>
+            <span className="text-[10px] font-mono text-cyan-400">AES-256-GCM Vault + ML-DSA-65</span>
           </div>
 
           <div className="space-y-2.5 overflow-y-auto pr-1 flex-1">

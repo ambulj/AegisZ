@@ -56,7 +56,7 @@ export const ArchitectureBenchmarkTab: React.FC = () => {
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
             <h4 className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-cyan-400" /> AI Inference Latency: Telum II vs Cloud (ms)
+              <Zap className="w-3.5 h-3.5 text-cyan-400" /> AI Inference Latency: Telum II vs Cloud (Simulated / Projected)
             </h4>
             <span className="text-[10px] font-mono text-slate-500">Lower is better</span>
           </div>
@@ -76,7 +76,7 @@ export const ArchitectureBenchmarkTab: React.FC = () => {
             </ResponsiveContainer>
           </div>
           <p className="text-[10px] text-slate-400 font-mono mt-2 text-center">
-            IBM Telum II executes threat gatekeeping directly on-chip in ~380 µs, eliminating PCIe bus traversal.
+            *Telum II latency (~380 µs) is an architectural projection based on on-chip NNPA specs. Run <code className="text-cyan-400">scripts/bench_latency.py</code> for measured host p50/p99 numbers.
           </p>
         </div>
 

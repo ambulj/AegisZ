@@ -336,10 +336,10 @@ export const PrivacySandboxTab: React.FC<PrivacySandboxTabProps> = ({
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col h-[520px]">
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-2.5">
             <h4 className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-amber-400" /> 1. Raw Ingress Clinical Record
+              <FileText className="w-3.5 h-3.5 text-amber-400" /> 1. Ingress Record (Synthetic Demo)
             </h4>
-            <span className="text-[10px] font-mono text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800/40">
-              UNSANITIZED PII
+            <span className="text-[10px] font-mono text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/40">
+              SYNTHETIC DATA ONLY
             </span>
           </div>
 
@@ -361,10 +361,10 @@ export const PrivacySandboxTab: React.FC<PrivacySandboxTabProps> = ({
         <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col h-[520px]">
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-2.5">
             <h4 className="text-xs font-mono font-bold text-slate-300 flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-cyan-400" /> 2. Stage 0 CPACF Wire-Speed Tokens
+              <Lock className="w-3.5 h-3.5 text-cyan-400" /> 2. Stage 0 PII-Blind Vault Tokens
             </h4>
             <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
-              ZERO-KNOWLEDGE
+              PII-BLIND TOKENS
             </span>
           </div>
 

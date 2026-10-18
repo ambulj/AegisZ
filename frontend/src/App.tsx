@@ -193,7 +193,7 @@ export const App: React.FC = () => {
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 font-sans hidden sm:block">
-                Zero-Knowledge Clinical & Welfare AI Gateway (IBM Z Datathon)
+                PII-Blind Clinical & Welfare AI Gateway (IBM Z Datathon)
               </div>
             </div>
           </div>
